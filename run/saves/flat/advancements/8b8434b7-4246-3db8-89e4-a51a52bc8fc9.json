@@ -1,8 +1,0 @@
-{
-  "minecraft:recipes/misc/coal": {
-    "criteria": {
-      "has_coal_block": "2017-09-02 23:49:38 +0200"
-    },
-    "done": true
-  }
-}
