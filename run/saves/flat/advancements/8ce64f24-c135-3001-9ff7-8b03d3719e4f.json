@@ -1,0 +1,14 @@
+{
+  "minecraft:recipes/misc/coal": {
+    "criteria": {
+      "has_coal_block": "2017-09-02 12:53:56 +0200"
+    },
+    "done": true
+  },
+  "minecraft:recipes/decorations/chest": {
+    "criteria": {
+      "has_lots_of_items": "2017-09-02 12:57:08 +0200"
+    },
+    "done": true
+  }
+}

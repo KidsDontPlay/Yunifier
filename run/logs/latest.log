@@ -1,0 +1,68 @@
+[00:26:30] [main/INFO]: Setting user: Player933
+[00:26:33] [main/WARN]: Skipping bad option: lastServer:
+[00:26:33] [main/INFO]: LWJGL Version: 2.9.4
+[00:26:39] [main/INFO]: Reloading ResourceManager: Default, FMLFileResourcePack:Forge Mod Loader, FMLFileResourcePack:Minecraft Forge, FMLFileResourcePack:Yunifier, FMLFileResourcePack:Forestry, FMLFileResourcePack:Immersive Engineering, FMLFileResourcePack:IndustrialCraft 2
+[00:26:47] [Sound Library Loader/INFO]: Starting up SoundSystem...
+[00:26:48] [Thread-5/INFO]: Initializing LWJGL OpenAL
+[00:26:48] [Thread-5/INFO]: (The LWJGL binding of OpenAL.  For more information, see http://www.lwjgl.org)
+[00:26:48] [Thread-5/INFO]: OpenAL initialized.
+[00:26:48] [Sound Library Loader/INFO]: Sound engine started
+[00:26:52] [main/WARN]: Texture immersiveengineering:textures/blocks/metal_multiblock_silo.png with size 88x88 will have visual artifacts at mip level 4, it can only support level 3. Please report to the mod author that the texture should be some multiple of 16x16.
+[00:26:52] [main/INFO]: Created: 2048x2048 textures-atlas
+[00:26:59] [main/WARN]: Skipping bad option: lastServer:
+[00:26:59] [main/INFO]: Narrator library successfully loaded
+[00:27:01] [Realms Notification Availability checker #1/INFO]: Could not authorize you against Realms server: Invalid session id
+[00:27:03] [Server thread/INFO]: Starting integrated minecraft server version 1.12.1
+[00:27:03] [Server thread/INFO]: Generating keypair
+[00:27:04] [Server thread/INFO]: Loaded 516 advancements
+[00:27:04] [Server thread/INFO]: Preparing start region for level 0
+[00:27:05] [Server thread/INFO]: Changing view distance to 12, from 10
+[00:27:06] [Server thread/INFO]: Player933[local:E:47053a3a] logged in with entity id 2 at (15.844998164439769, 4.0, 2.4996460339196163)
+[00:27:06] [Server thread/INFO]: Player933 joined the game
+[00:27:07] [Server thread/INFO]: Saving and pausing game...
+[00:27:07] [Server thread/INFO]: Saving chunks for level 'flat'/overworld
+[00:27:07] [Server thread/INFO]: Saving chunks for level 'flat'/the_nether
+[00:27:07] [Server thread/INFO]: Saving chunks for level 'flat'/the_end
+[00:27:07] [main/INFO]: Loaded 21 advancements
+[00:27:07] [pool-2-thread-1/WARN]: Couldn't look up profile properties for com.mojang.authlib.GameProfile@59825962[id=bfc5c6f8-886e-30ef-aac9-4df3c4277f54,name=Player933,properties={},legacy=false]
+com.mojang.authlib.exceptions.AuthenticationException: The client has sent too many requests within a certain amount of time
+	at com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService.makeRequest(YggdrasilAuthenticationService.java:79) ~[YggdrasilAuthenticationService.class:?]
+	at com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService.fillGameProfile(YggdrasilMinecraftSessionService.java:180) [YggdrasilMinecraftSessionService.class:?]
+	at com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService$1.load(YggdrasilMinecraftSessionService.java:60) [YggdrasilMinecraftSessionService$1.class:?]
+	at com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService$1.load(YggdrasilMinecraftSessionService.java:57) [YggdrasilMinecraftSessionService$1.class:?]
+	at com.google.common.cache.LocalCache$LoadingValueReference.loadFuture(LocalCache.java:3716) [guava-21.0.jar:?]
+	at com.google.common.cache.LocalCache$Segment.loadSync(LocalCache.java:2424) [guava-21.0.jar:?]
+	at com.google.common.cache.LocalCache$Segment.lockedGetOrLoad(LocalCache.java:2298) [guava-21.0.jar:?]
+	at com.google.common.cache.LocalCache$Segment.get(LocalCache.java:2211) [guava-21.0.jar:?]
+	at com.google.common.cache.LocalCache.get(LocalCache.java:4154) [guava-21.0.jar:?]
+	at com.google.common.cache.LocalCache.getOrLoad(LocalCache.java:4158) [guava-21.0.jar:?]
+	at com.google.common.cache.LocalCache$LocalLoadingCache.get(LocalCache.java:5147) [guava-21.0.jar:?]
+	at com.google.common.cache.LocalCache$LocalLoadingCache.getUnchecked(LocalCache.java:5153) [guava-21.0.jar:?]
+	at com.mojang.authlib.yggdrasil.YggdrasilMinecraftSessionService.fillProfileProperties(YggdrasilMinecraftSessionService.java:170) [YggdrasilMinecraftSessionService.class:?]
+	at net.minecraft.client.Minecraft.getProfileProperties(Minecraft.java:3190) [Minecraft.class:?]
+	at net.minecraft.client.resources.SkinManager$3.run(SkinManager.java:138) [SkinManager$3.class:?]
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511) [?:1.8.0_131]
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266) [?:1.8.0_131]
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149) [?:1.8.0_131]
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624) [?:1.8.0_131]
+	at java.lang.Thread.run(Thread.java:748) [?:1.8.0_131]
+[00:27:08] [Server thread/INFO]: Saving and pausing game...
+[00:27:08] [Server thread/INFO]: Saving chunks for level 'flat'/overworld
+[00:27:08] [Server thread/INFO]: Saving chunks for level 'flat'/the_nether
+[00:27:08] [Server thread/INFO]: Saving chunks for level 'flat'/the_end
+[00:37:54] [Server thread/INFO]: Saving and pausing game...
+[00:37:54] [Server thread/INFO]: Saving chunks for level 'flat'/overworld
+[00:37:54] [Server thread/INFO]: Saving chunks for level 'flat'/the_nether
+[00:37:54] [Server thread/INFO]: Saving chunks for level 'flat'/the_end
+[00:37:54] [Server thread/INFO]: Stopping server
+[00:37:54] [Server thread/INFO]: Saving players
+[00:37:54] [Server thread/INFO]: Player933 lost connection: Disconnected
+[00:37:54] [Server thread/INFO]: Player933 left the game
+[00:37:54] [Server thread/INFO]: Stopping singleplayer server as player logged out
+[00:37:54] [Server thread/INFO]: Saving worlds
+[00:37:54] [Server thread/INFO]: Saving chunks for level 'flat'/overworld
+[00:37:54] [Server thread/INFO]: Saving chunks for level 'flat'/the_nether
+[00:37:54] [Server thread/INFO]: Saving chunks for level 'flat'/the_end
+[00:37:56] [main/INFO]: Stopping!
+[00:37:56] [main/INFO]: SoundSystem shutting down...
+[00:37:56] [main/WARN]: Author: Paul Lamb, www.paulscode.com

@@ -1,0 +1,16 @@
+[
+{
+  "modid": "limelib",
+  "name": "LimeLib",
+  "description": "Library",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["MrRiegel"],
+  "credits": "The Forge and FML guys, for making this example",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]

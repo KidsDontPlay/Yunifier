@@ -1,0 +1,18 @@
+{
+  "id": "hallo_-1,4,4",
+  "name": "hallo",
+  "icon": "waypoint-normal.png",
+  "x": -1,
+  "y": 4,
+  "z": 4,
+  "r": 196,
+  "g": 248,
+  "b": 56,
+  "enable": true,
+  "type": "Normal",
+  "origin": "journeymap",
+  "dimensions": [
+    0
+  ],
+  "persistent": true
+}
