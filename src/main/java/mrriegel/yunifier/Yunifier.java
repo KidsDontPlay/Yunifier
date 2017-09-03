@@ -6,7 +6,9 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import net.minecraft.entity.item.EntityItem;
+import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.entity.player.PlayerContainerEvent;
@@ -37,14 +39,15 @@ public class Yunifier {
 
 	//config
 	public static Configuration config;
-	public static List<String> blacklist, preferredMods;
+	public static List<String> blacklist, preferredMods, blacklistMods;
 	public static boolean drop, harvest, gui, second;
 
 	@Mod.EventHandler
 	public void preInit(FMLPreInitializationEvent event) {
 		config = new Configuration(event.getSuggestedConfigurationFile());
 		blacklist = new ArrayList<String>(Arrays.asList(config.getStringList("blacklist", Configuration.CATEGORY_GENERAL, new String[] { "stair.*", "fence.*" }, "OreDict names that shouldn't be unified. (supports regex)")));
-		preferredMods = new ArrayList<String>(Arrays.asList(config.getStringList("preferredMods", Configuration.CATEGORY_GENERAL, new String[] { "immersiveengineering", "embers" }, "")));
+		preferredMods = new ArrayList<String>(Arrays.asList(config.getStringList("preferredMods", Configuration.CATEGORY_GENERAL, new String[] { "minecraft", "immersiveengineering", "thermalfoundation", "embers" }, "")));
+		blacklistMods = new ArrayList<String>(Arrays.asList(config.getStringList("blacklistMods", Configuration.CATEGORY_GENERAL, new String[] {}, "Blacklisted Mods")));
 		drop = config.getBoolean("drop", "unifyEvent", true, "Unify when items drop.");
 		harvest = config.getBoolean("harvest", "unifyEvent", true, "Unify when blocks are harvested.");
 		second = config.getBoolean("second", "unifyEvent", false, "Unify every second items in player's inventory.");
@@ -52,6 +55,7 @@ public class Yunifier {
 
 		if (config.hasChanged())
 			config.save();
+		//		MinecraftForge.EVENT_BUS.unregister(Yunifier.class);
 	}
 
 	@Mod.EventHandler
@@ -93,7 +97,10 @@ public class Yunifier {
 	@SubscribeEvent
 	public static void open(PlayerContainerEvent event) {
 		if (gui)
-			event.getContainer().inventorySlots.forEach(slot -> slot.inventory.setInventorySlotContents(slot.getSlotIndex(), replace(slot.inventory.getStackInSlot(slot.getSlotIndex()))));
+			event.getContainer().inventorySlots.forEach(slot -> {
+				if (slot.inventory instanceof InventoryPlayer)
+					slot.inventory.setInventorySlotContents(slot.getSlotIndex(), replace(slot.inventory.getStackInSlot(slot.getSlotIndex())));
+			});
 	}
 
 	private static ItemStack replace(ItemStack orig) {
@@ -101,6 +108,8 @@ public class Yunifier {
 			return orig;
 		int[] ia = OreDictionary.getOreIDs(orig);
 		if (ia.length != 1)
+			return orig;
+		if (blacklistMods.contains(orig.getItem().getRegistryName().getResourceDomain()))
 			return orig;
 		for (String s : blacklist)
 			if (Pattern.matches(s, OreDictionary.getOreName(ia[0])))
