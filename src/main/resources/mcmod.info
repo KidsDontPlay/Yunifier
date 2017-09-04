@@ -1,8 +1,8 @@
 [
 {
-  "modid": "limelib",
-  "name": "LimeLib",
-  "description": "Library",
+  "modid": "instantunify",
+  "name": "InstantUnify",
+  "description": "Unifies oredicted items automatically",
   "version": "${version}",
   "mcversion": "${mcversion}",
   "url": "",

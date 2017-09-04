@@ -1,4 +1,4 @@
-package mrriegel.yunifier;
+package mrriegel.instantunify;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,16 +28,18 @@ import net.minecraftforge.oredict.OreDictionary;
 import wanion.unidict.UniDict;
 import wanion.unidict.resource.ResourceHandler;
 
-@Mod(modid = Yunifier.MODID, name = Yunifier.NAME, version = Yunifier.VERSION, dependencies = "before:unidict", acceptableRemoteVersions = "*")
+@Mod(modid = InstantUnify.MODID, name = InstantUnify.NAME, version = InstantUnify.VERSION, dependencies = "before:unidict", acceptableRemoteVersions = "*")
 @EventBusSubscriber
-public class Yunifier {
+public class InstantUnify {
 
-	@Instance(Yunifier.MODID)
-	public static Yunifier INSTANCE;
+	@Instance(InstantUnify.MODID)
+	public static InstantUnify INSTANCE;
 
 	public static final String VERSION = "1.0.0";
-	public static final String NAME = "Yunifier";
-	public static final String MODID = "yunifier";
+	public static final String NAME = "InstantUnify";
+	public static final String MODID = "instantunify";
+
+	static Object resourceHandler = null;
 
 	//config
 	public static Configuration config;
@@ -63,12 +65,9 @@ public class Yunifier {
 
 	@Mod.EventHandler
 	public void postInit(FMLPostInitializationEvent event) {
-		if (useUnidict) {
+		if (useUnidict)
 			resourceHandler = UniDict.getResourceHandler();
-		}
 	}
-
-	static Object resourceHandler = null;
 
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void spawn(EntityJoinWorldEvent event) {
@@ -81,7 +80,7 @@ public class Yunifier {
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void drop(HarvestDropsEvent event) {
 		for (int i = 0; i < event.getDrops().size() && harvest; i++) {
-			event.getDrops().replaceAll(Yunifier::replace);
+			event.getDrops().replaceAll(InstantUnify::replace);
 		}
 	}
 
@@ -115,9 +114,8 @@ public class Yunifier {
 	private static ItemStack replace(ItemStack orig) {
 		if (orig.isEmpty())
 			return orig;
-		if (useUnidict) {
+		if (useUnidict)
 			return ((ResourceHandler) resourceHandler).getMainItemStack(orig);
-		}
 		int[] ia = OreDictionary.getOreIDs(orig);
 		if (ia.length != 1)
 			return orig;
