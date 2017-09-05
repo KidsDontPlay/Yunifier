@@ -28,14 +28,14 @@ import net.minecraftforge.oredict.OreDictionary;
 import wanion.unidict.UniDict;
 import wanion.unidict.resource.ResourceHandler;
 
-@Mod(modid = InstantUnify.MODID, name = InstantUnify.NAME, version = InstantUnify.VERSION, dependencies = "before:unidict", acceptableRemoteVersions = "*")
+@Mod(modid = InstantUnify.MODID, name = InstantUnify.NAME, version = InstantUnify.VERSION, dependencies = "before:unidict", acceptedMinecraftVersions = "[1.12]", acceptableRemoteVersions = "*")
 @EventBusSubscriber
 public class InstantUnify {
 
 	@Instance(InstantUnify.MODID)
 	public static InstantUnify INSTANCE;
 
-	public static final String VERSION = "1.0.0";
+	public static final String VERSION = "1.0.1";
 	public static final String NAME = "InstantUnify";
 	public static final String MODID = "instantunify";
 

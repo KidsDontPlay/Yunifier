@@ -12,9 +12,9 @@ apply plugin: 'net.minecraftforge.gradle.forge'
 Properties props = new Properties()
 props.load(new BufferedReader(new FileReader(file('../gradle.properties'))))
 
-version = "${props.get('mc_version')}-1.0.0"
-group = "mrriegel.yunifier"
-archivesBaseName = "yunifier"
+version = "${props.get('mc_version')}-1.0.1"
+group = "mrriegel.instantunify"
+archivesBaseName = "instantunify"
 
 sourceCompatibility = targetCompatibility = '1.8'
 compileJava {
