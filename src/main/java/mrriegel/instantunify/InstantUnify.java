@@ -3,12 +3,14 @@ package mrriegel.instantunify;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.entity.player.PlayerContainerEvent;
@@ -17,12 +19,15 @@ import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.fml.common.Mod.Instance;
+import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLServerStartedEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent.Phase;
 import net.minecraftforge.fml.common.gameevent.TickEvent.PlayerTickEvent;
+import net.minecraftforge.fml.common.registry.ForgeRegistries;
 import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraftforge.oredict.OreDictionary;
 import wanion.unidict.UniDict;
@@ -35,7 +40,7 @@ public class InstantUnify {
 	@Instance(InstantUnify.MODID)
 	public static InstantUnify INSTANCE;
 
-	public static final String VERSION = "1.0.1";
+	public static final String VERSION = "1.0.2";
 	public static final String NAME = "InstantUnify";
 	public static final String MODID = "instantunify";
 
@@ -43,13 +48,14 @@ public class InstantUnify {
 
 	//config
 	public static Configuration config;
-	public static List<String> blacklist, preferredMods, blacklistMods;
-	public static boolean drop, harvest, gui, second, useUnidict;
+	public static List<String> blacklist, whitelist, preferredMods, blacklistMods;
+	public static boolean drop, harvest, gui, second, useUnidict, useWhitelist;
 
 	@Mod.EventHandler
 	public void preInit(FMLPreInitializationEvent event) {
 		config = new Configuration(event.getSuggestedConfigurationFile());
-		blacklist = new ArrayList<String>(Arrays.asList(config.getStringList("blacklist", Configuration.CATEGORY_GENERAL, new String[] { "stair.*", "fence.*" }, "OreDict names that shouldn't be unified. (supports regex)")));
+		blacklist = new ArrayList<String>(Arrays.asList(config.getStringList("blacklist", Configuration.CATEGORY_GENERAL, new String[] { ".*Wood", ".*Glass", "stair.*", "fence.*", "plank.*", "slab.*" }, "OreDict names that shouldn't be unified. (supports regex)")));
+		//		whitelist = new ArrayList<String>(Arrays.asList(config.getStringList("whitelist", "list", new String[] { "block.*", "chunk.*", "dust.*", "dustSmall.*", "dustTiny.*", "gear.*", "gem.*", "ingot.*", "nugget.*", "ore.*", "plate.*", "rod.*" }, "OreDict names that shouldn't be unified. (supports regex)")));
 		preferredMods = new ArrayList<String>(Arrays.asList(config.getStringList("preferredMods", Configuration.CATEGORY_GENERAL, new String[] { "thermalfoundation", "immersiveengineering", "embers" }, "Preferred Mods")));
 		preferredMods.add(0, "minecraft");
 		blacklistMods = new ArrayList<String>(Arrays.asList(config.getStringList("blacklistMods", Configuration.CATEGORY_GENERAL, new String[] {}, "Blacklisted Mods")));
@@ -63,15 +69,32 @@ public class InstantUnify {
 			config.save();
 	}
 
+	static List<ItemStack> cops;
+
+	@Mod.EventHandler
+	public void init(FMLInitializationEvent event) {
+		//debug
+		cops = Arrays.asList(new ItemStack[] { //
+				new ItemStack(ForgeRegistries.ITEMS.getValue(new ResourceLocation("immersiveengineering:metal")), 1, 0), //
+				new ItemStack(ForgeRegistries.ITEMS.getValue(new ResourceLocation("ic2:ingot")), 1, 2), //
+				new ItemStack(ForgeRegistries.ITEMS.getValue(new ResourceLocation("forestry:ingot_copper")), 1, 0) });
+	}
+
 	@Mod.EventHandler
 	public void postInit(FMLPostInitializationEvent event) {
-		if (useUnidict)
-			resourceHandler = UniDict.getResourceHandler();
+		if (useUnidict) {
+			ResourceHandler rh = UniDict.getResourceHandler();
+			resourceHandler = rh;
+		}
+	}
+
+	@Mod.EventHandler
+	public static void start(FMLServerStartedEvent event) {
 	}
 
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void spawn(EntityJoinWorldEvent event) {
-		if (event.getEntity() instanceof EntityItem && drop) {
+		if (drop && event.getEntity() instanceof EntityItem) {
 			EntityItem ei = (EntityItem) event.getEntity();
 			ei.setItem(replace(ei.getItem()));
 		}
@@ -79,21 +102,21 @@ public class InstantUnify {
 
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void drop(HarvestDropsEvent event) {
-		for (int i = 0; i < event.getDrops().size() && harvest; i++) {
+		for (int i = 0; harvest && i < event.getDrops().size(); i++) {
 			event.getDrops().replaceAll(InstantUnify::replace);
 		}
 	}
 
 	@SubscribeEvent
 	public static void player(PlayerTickEvent event) {
-		if (event.phase == Phase.END && event.side.isServer() && event.player.ticksExisted % 20 == 0 && second) {
+		if (second && event.phase == Phase.END && event.side.isServer() && event.player.ticksExisted % 20 == 0) {
 			event.player.inventory.setItemStack(replace(event.player.inventory.getItemStack()));
 			boolean changed = false;
 			for (int i = 0; i < event.player.inventory.getSizeInventory(); i++) {
 				ItemStack slot = event.player.inventory.getStackInSlot(i);
-				ItemStack rep = replace(slot);
-				if (!slot.isItemEqual(rep)) {
-					event.player.inventory.setInventorySlotContents(i, rep);
+				Optional<ItemStack> rep = replaceOptional(slot);
+				if (rep.isPresent()) {
+					event.player.inventory.setInventorySlotContents(i, rep.get());
 					changed = true;
 				}
 			}
@@ -112,31 +135,43 @@ public class InstantUnify {
 	}
 
 	private static ItemStack replace(ItemStack orig) {
+		Optional<ItemStack> op = replaceOptional(orig);
+		return op.isPresent() ? op.get() : orig;
+	}
+
+	private static Optional<ItemStack> replaceOptional(ItemStack orig) {
 		if (orig.isEmpty())
-			return orig;
-		if (useUnidict)
-			return ((ResourceHandler) resourceHandler).getMainItemStack(orig);
+			return Optional.empty();
+		if (useUnidict && ".".isEmpty()/** TODO disabled */
+		) {
+			ItemStack n = ((ResourceHandler) resourceHandler).getMainItemStack(orig);
+			return n.isItemEqual(orig) ? Optional.empty() : Optional.of(n);
+		}
 		int[] ia = OreDictionary.getOreIDs(orig);
 		if (ia.length != 1)
-			return orig;
-		if (blacklistMods.contains(orig.getItem().getRegistryName().getResourceDomain()))
-			return orig;
-		for (String s : blacklist)
-			if (Pattern.matches(s, OreDictionary.getOreName(ia[0])))
-				return orig;
+			return Optional.empty();
+		if (blacklistMods.contains(orig.getItem().getRegistryName().getResourceDomain()) || //
+				blacklist.stream().anyMatch(s -> Pattern.matches(s, OreDictionary.getOreName(ia[0]))))
+			return Optional.empty();
 		List<ItemStack> stacks = OreDictionary.getOres(OreDictionary.getOreName(ia[0])).stream().//
 				sorted((s1, s2) -> {
 					int i1 = preferredMods.indexOf(s1.getItem().getRegistryName().getResourceDomain()), i2 = preferredMods.indexOf(s2.getItem().getRegistryName().getResourceDomain());
 					return Integer.compare(i1 == -1 ? 999 : i1, i2 == -1 ? 999 : i2);
 				}).collect(Collectors.toList());
 		if (stacks.stream().map(s -> s.getItem().getRegistryName().getResourceDomain()).distinct().count() == 1)
-			return orig;
+			return Optional.empty();
 		for (ItemStack s : stacks) {
-			if (Arrays.equals(ia, OreDictionary.getOreIDs(s)) && s.getItemDamage() != OreDictionary.WILDCARD_VALUE) {
-				return ItemHandlerHelper.copyStackWithSize(s, orig.getCount());
+			if (Arrays.equals(ia, OreDictionary.getOreIDs(s))) {
+				if (s.getItemDamage() == OreDictionary.WILDCARD_VALUE) {
+					if (s.getItem() == orig.getItem())
+						return Optional.empty();
+				} else {
+					ItemStack res = ItemHandlerHelper.copyStackWithSize(s, orig.getCount());
+					return res.isItemEqual(orig) ? Optional.empty() : Optional.of(res);
+				}
 			}
 		}
-		return orig;
+		return Optional.empty();
 	}
 
 }
