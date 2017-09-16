@@ -40,7 +40,7 @@ public class InstantUnify {
 	@Instance(InstantUnify.MODID)
 	public static InstantUnify INSTANCE;
 
-	public static final String VERSION = "1.0.3";
+	public static final String VERSION = "1.0.4";
 	public static final String NAME = "InstantUnify";
 	public static final String MODID = "instantunify";
 
@@ -149,9 +149,15 @@ public class InstantUnify {
 		if (ia.length == 0)
 			return Optional.empty();
 		int ore = ia[0];
-		if (blacklistMods.contains(orig.getItem().getRegistryName().getResourceDomain()) || //
-				blacklist.stream().anyMatch(s -> Pattern.matches(s, OreDictionary.getOreName(ore))))
+		if (blacklistMods.contains(orig.getItem().getRegistryName().getResourceDomain()))
 			return Optional.empty();
+		if (useWhitelist) {
+			if (!whitelist.stream().anyMatch(s -> Pattern.matches(s, OreDictionary.getOreName(ore))))
+				return Optional.empty();
+		} else {
+			if (blacklist.stream().anyMatch(s -> Pattern.matches(s, OreDictionary.getOreName(ore))))
+				return Optional.empty();
+		}
 		List<ItemStack> stacks = OreDictionary.getOres(OreDictionary.getOreName(ore)).stream().//
 				sorted((s1, s2) -> {
 					int i1 = preferredMods.indexOf(s1.getItem().getRegistryName().getResourceDomain()), i2 = preferredMods.indexOf(s2.getItem().getRegistryName().getResourceDomain());
