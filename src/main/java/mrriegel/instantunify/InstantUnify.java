@@ -40,7 +40,7 @@ public class InstantUnify {
 	@Instance(InstantUnify.MODID)
 	public static InstantUnify INSTANCE;
 
-	public static final String VERSION = "1.0.2";
+	public static final String VERSION = "1.0.3";
 	public static final String NAME = "InstantUnify";
 	public static final String MODID = "instantunify";
 
@@ -54,8 +54,9 @@ public class InstantUnify {
 	@Mod.EventHandler
 	public void preInit(FMLPreInitializationEvent event) {
 		config = new Configuration(event.getSuggestedConfigurationFile());
-		blacklist = new ArrayList<String>(Arrays.asList(config.getStringList("blacklist", Configuration.CATEGORY_GENERAL, new String[] { ".*Wood", ".*Glass", "stair.*", "fence.*", "plank.*", "slab.*" }, "OreDict names that shouldn't be unified. (supports regex)")));
-		//		whitelist = new ArrayList<String>(Arrays.asList(config.getStringList("whitelist", "list", new String[] { "block.*", "chunk.*", "dust.*", "dustSmall.*", "dustTiny.*", "gear.*", "gem.*", "ingot.*", "nugget.*", "ore.*", "plate.*", "rod.*" }, "OreDict names that shouldn't be unified. (supports regex)")));
+		blacklist = new ArrayList<String>(Arrays.asList(config.getStringList("blacklist", "List", new String[] { ".*Wood", ".*Glass", "stair.*", "fence.*", "plank.*", "slab.*" }, "OreDict names that shouldn't be unified. (supports regex)")));
+		whitelist = new ArrayList<String>(Arrays.asList(config.getStringList("whitelist", "List", new String[] { "block.*", "chunk.*", "dust.*", "dustSmall.*", "dustTiny.*", "gear.*", "gem.*", "ingot.*", "nugget.*", "ore.*", "plate.*", "rod.*" }, "OreDict names that should be unified. (supports regex)")));
+		useWhitelist = config.getBoolean("useWhitelist", "List", true, "true - use whitelist" + Configuration.NEW_LINE + "false - use blacklist");
 		preferredMods = new ArrayList<String>(Arrays.asList(config.getStringList("preferredMods", Configuration.CATEGORY_GENERAL, new String[] { "thermalfoundation", "immersiveengineering", "embers" }, "Preferred Mods")));
 		preferredMods.add(0, "minecraft");
 		blacklistMods = new ArrayList<String>(Arrays.asList(config.getStringList("blacklistMods", Configuration.CATEGORY_GENERAL, new String[] {}, "Blacklisted Mods")));
@@ -114,9 +115,9 @@ public class InstantUnify {
 			boolean changed = false;
 			for (int i = 0; i < event.player.inventory.getSizeInventory(); i++) {
 				ItemStack slot = event.player.inventory.getStackInSlot(i);
-				Optional<ItemStack> rep = replaceOptional(slot);
-				if (rep.isPresent()) {
-					event.player.inventory.setInventorySlotContents(i, rep.get());
+				Optional<ItemStack> op = replaceOptional(slot);
+				if (op.isPresent()) {
+					event.player.inventory.setInventorySlotContents(i, op.get());
 					changed = true;
 				}
 			}
@@ -128,10 +129,7 @@ public class InstantUnify {
 	@SubscribeEvent
 	public static void open(PlayerContainerEvent event) {
 		if (gui)
-			event.getContainer().inventorySlots.forEach(slot -> {
-				if (slot.inventory instanceof InventoryPlayer)
-					slot.inventory.setInventorySlotContents(slot.getSlotIndex(), replace(slot.inventory.getStackInSlot(slot.getSlotIndex())));
-			});
+			event.getContainer().inventorySlots.stream().filter(slot -> slot.inventory instanceof InventoryPlayer).forEach(slot -> slot.inventory.setInventorySlotContents(slot.getSlotIndex(), replace(slot.inventory.getStackInSlot(slot.getSlotIndex()))));
 	}
 
 	private static ItemStack replace(ItemStack orig) {
@@ -148,12 +146,13 @@ public class InstantUnify {
 			return n.isItemEqual(orig) ? Optional.empty() : Optional.of(n);
 		}
 		int[] ia = OreDictionary.getOreIDs(orig);
-		if (ia.length != 1)
+		if (ia.length == 0)
 			return Optional.empty();
+		int ore = ia[0];
 		if (blacklistMods.contains(orig.getItem().getRegistryName().getResourceDomain()) || //
-				blacklist.stream().anyMatch(s -> Pattern.matches(s, OreDictionary.getOreName(ia[0]))))
+				blacklist.stream().anyMatch(s -> Pattern.matches(s, OreDictionary.getOreName(ore))))
 			return Optional.empty();
-		List<ItemStack> stacks = OreDictionary.getOres(OreDictionary.getOreName(ia[0])).stream().//
+		List<ItemStack> stacks = OreDictionary.getOres(OreDictionary.getOreName(ore)).stream().//
 				sorted((s1, s2) -> {
 					int i1 = preferredMods.indexOf(s1.getItem().getRegistryName().getResourceDomain()), i2 = preferredMods.indexOf(s2.getItem().getRegistryName().getResourceDomain());
 					return Integer.compare(i1 == -1 ? 999 : i1, i2 == -1 ? 999 : i2);
