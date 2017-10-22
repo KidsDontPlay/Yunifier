@@ -35,7 +35,7 @@ public class InstantUnify {
 	@Instance(InstantUnify.MODID)
 	public static InstantUnify INSTANCE;
 
-	public static final String VERSION = "1.0.5";
+	public static final String VERSION = "1.0.6";
 	public static final String NAME = "InstantUnify";
 	public static final String MODID = "instantunify";
 
@@ -53,7 +53,7 @@ public class InstantUnify {
 		listMode = config.getInt("listMode", "List", 2, 0, 3, "0 - use whitelist" + NEW_LINE + "1 - use blacklist" + NEW_LINE + "2 - use both lists" + NEW_LINE + "3 - use no list" + NEW_LINE);
 		preferredMods = new ArrayList<String>(Arrays.asList(config.getStringList("preferredMods", CATEGORY_GENERAL, new String[] { "thermalfoundation", "immersiveengineering", "embers" }, "Preferred Mods" + NEW_LINE)));
 		preferredMods.add(0, "minecraft");
-		blacklistMods = new ArrayList<String>(Arrays.asList(config.getStringList("blacklistMods", CATEGORY_GENERAL, new String[] {}, "Blacklisted Mods" + NEW_LINE)));
+		blacklistMods = new ArrayList<String>(Arrays.asList(config.getStringList("blacklistMods", CATEGORY_GENERAL, new String[] { "chisel" }, "Blacklisted Mods" + NEW_LINE)));
 		drop = config.getBoolean("drop", "unifyEvent", true, "Unify when items drop.");
 		harvest = config.getBoolean("harvest", "unifyEvent", true, "Unify when blocks are harvested.");
 		second = config.getBoolean("second", "unifyEvent", false, "Unify every second items in player's inventory.");
@@ -73,9 +73,12 @@ public class InstantUnify {
 	}
 
 	@SubscribeEvent(priority = EventPriority.LOWEST)
-	public static void drop(HarvestDropsEvent event) {
+	public static void harvest(HarvestDropsEvent event) {
 		for (int i = 0; harvest && i < event.getDrops().size(); i++) {
-			event.getDrops().replaceAll(InstantUnify::replace);
+			try {
+				event.getDrops().replaceAll(InstantUnify::replace);
+			} catch (UnsupportedOperationException e) {
+			}
 		}
 	}
 
