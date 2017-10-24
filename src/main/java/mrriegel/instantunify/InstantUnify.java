@@ -5,11 +5,16 @@ import static net.minecraftforge.common.config.Configuration.NEW_LINE;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.apache.logging.log4j.LogManager;
+
+import net.minecraft.block.Block;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
@@ -35,15 +40,16 @@ public class InstantUnify {
 	@Instance(InstantUnify.MODID)
 	public static InstantUnify INSTANCE;
 
-	public static final String VERSION = "1.0.6";
+	public static final String VERSION = "1.0.7";
 	public static final String NAME = "InstantUnify";
 	public static final String MODID = "instantunify";
 
 	//config
 	public static Configuration config;
 	public static List<String> blacklist, whitelist, preferredMods, blacklistMods;
-	public static boolean drop, harvest, gui, second, useUnidict;
+	public static boolean drop, harvest, gui, second;
 	public static int listMode;
+	public static Map<String, List<String>> alternatives = new HashMap<>();
 
 	@Mod.EventHandler
 	public void preInit(FMLPreInitializationEvent event) {
@@ -58,8 +64,15 @@ public class InstantUnify {
 		harvest = config.getBoolean("harvest", "unifyEvent", true, "Unify when blocks are harvested.");
 		second = config.getBoolean("second", "unifyEvent", false, "Unify every second items in player's inventory.");
 		gui = config.getBoolean("gui", "unifyEvent", true, "Unify when GUI is opened/closed.");
-		//useUnidict = config.getBoolean("useUnidict", CATEGORY_GENERAL, true, "Use UniDict's favorite ores to unify.") && Loader.isModLoaded("unidict");
-
+		List<List<String>> alts = Arrays.stream(config.getStringList("alternatives", CATEGORY_GENERAL, new String[] { "aluminum aluminium" }, "OreDict names that should be unified even if they are different." + NEW_LINE)).map(s -> Arrays.stream(s.trim().split("\\s+")).filter(ss -> !ss.isEmpty()).collect(Collectors.toList())).collect(Collectors.toList());
+		for (List<String> lis : alts) {
+			for (String n : lis) {
+				List<String> copy = new ArrayList<>(lis);
+				copy.remove(n);
+				if (!copy.isEmpty())
+					alternatives.put(n, copy);
+			}
+		}
 		if (config.hasChanged())
 			config.save();
 	}
@@ -74,18 +87,19 @@ public class InstantUnify {
 
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void harvest(HarvestDropsEvent event) {
-		for (int i = 0; harvest && i < event.getDrops().size(); i++) {
+		if (harvest) {
 			try {
 				event.getDrops().replaceAll(InstantUnify::replace);
 			} catch (UnsupportedOperationException e) {
+				Block block = event.getWorld().getBlockState(event.getPos()).getBlock();
+				LogManager.getLogger(MODID).warn("Drops of " + block + " can't be replaced.");
 			}
 		}
 	}
 
 	@SubscribeEvent
 	public static void player(PlayerTickEvent event) {
-		if (second && event.phase == Phase.END && event.side.isServer() && event.player.ticksExisted % 20 == 0) {
-			event.player.inventory.setItemStack(replace(event.player.inventory.getItemStack()));
+		if (second && event.phase == Phase.END && !event.player.world.isRemote && event.player.ticksExisted % 20 == 0) {
 			boolean changed = false;
 			for (int i = 0; i < event.player.inventory.getSizeInventory(); i++) {
 				ItemStack slot = event.player.inventory.getStackInSlot(i);
@@ -102,8 +116,10 @@ public class InstantUnify {
 
 	@SubscribeEvent
 	public static void open(PlayerContainerEvent event) {
-		if (gui)
+		if (gui) {
 			event.getContainer().inventorySlots.stream().filter(slot -> slot.inventory instanceof InventoryPlayer).forEach(slot -> slot.inventory.setInventorySlotContents(slot.getSlotIndex(), replace(slot.inventory.getStackInSlot(slot.getSlotIndex()))));
+			event.getContainer().detectAndSendChanges();
+		}
 	}
 
 	private static ItemStack replace(ItemStack orig) {
@@ -112,26 +128,21 @@ public class InstantUnify {
 	}
 
 	private static Optional<ItemStack> replaceOptional(ItemStack orig) {
-		if (orig.isEmpty())
+		if (orig.isEmpty() || blacklistMods.contains(orig.getItem().getRegistryName().getResourceDomain()))
 			return Optional.empty();
-		if (useUnidict && ".".isEmpty()/** TODO disabled */
-		) {
-		}
-		int[] ia = OreDictionary.getOreIDs(orig);
-		if (ia.length == 0)
+		final String[] oreNames = oreNames(orig);
+		if (oreNames.length == 0)
 			return Optional.empty();
-		int ore = ia[0];
-		if (blacklistMods.contains(orig.getItem().getRegistryName().getResourceDomain()))
-			return Optional.empty();
+		String ore = oreNames[0];
 		if (listMode == 0 || listMode == 2) {
-			if (!whitelist.stream().anyMatch(s -> Pattern.matches(s, OreDictionary.getOreName(ore))))
+			if (!whitelist.stream().anyMatch(s -> Pattern.matches(s, ore)))
 				return Optional.empty();
 		}
 		if (listMode == 1 || listMode == 2) {
-			if (blacklist.stream().anyMatch(s -> Pattern.matches(s, OreDictionary.getOreName(ore))))
+			if (blacklist.stream().anyMatch(s -> Pattern.matches(s, ore)))
 				return Optional.empty();
 		}
-		List<ItemStack> stacks = OreDictionary.getOres(OreDictionary.getOreName(ore)).stream().//
+		List<ItemStack> stacks = OreDictionary.getOres(ore).stream().//
 				sorted((s1, s2) -> {
 					int i1 = preferredMods.indexOf(s1.getItem().getRegistryName().getResourceDomain()), i2 = preferredMods.indexOf(s2.getItem().getRegistryName().getResourceDomain());
 					return Integer.compare(i1 == -1 ? 999 : i1, i2 == -1 ? 999 : i2);
@@ -139,7 +150,7 @@ public class InstantUnify {
 		if (stacks.stream().map(s -> s.getItem().getRegistryName().getResourceDomain()).distinct().count() == 1)
 			return Optional.empty();
 		for (ItemStack s : stacks) {
-			if (Arrays.equals(ia, OreDictionary.getOreIDs(s))) {
+			if (Arrays.equals(oreNames, oreNames(s))) {
 				if (s.getItemDamage() == OreDictionary.WILDCARD_VALUE) {
 					if (s.getItem() == orig.getItem())
 						return Optional.empty();
@@ -150,6 +161,18 @@ public class InstantUnify {
 			}
 		}
 		return Optional.empty();
+	}
+
+	private static String[] oreNames(ItemStack s) {
+		List<String> ores = Arrays.stream(OreDictionary.getOreIDs(s)).mapToObj(i -> OreDictionary.getOreName(i)).collect(Collectors.toList());
+		for (String ore : new ArrayList<>(ores)) {
+			for (String key : alternatives.keySet())
+				if (ore.contains(key))
+					for (String alt : alternatives.get(key))
+						ores.add(ore.replace(key, alt));
+		}
+		return ores.stream().distinct().sorted().toArray(String[]::new);
+
 	}
 
 }
