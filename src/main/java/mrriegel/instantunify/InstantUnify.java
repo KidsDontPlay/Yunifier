@@ -20,18 +20,24 @@ import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
+import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.player.PlayerContainerEvent;
 import net.minecraftforge.event.world.BlockEvent.HarvestDropsEvent;
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.fml.common.Mod.Instance;
+import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent.Phase;
 import net.minecraftforge.fml.common.gameevent.TickEvent.PlayerTickEvent;
 import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraftforge.oredict.OreDictionary;
+import wanion.unidict.UniDict;
+import wanion.unidict.resource.ResourceHandler;
 
 @Mod(modid = InstantUnify.MODID, name = InstantUnify.NAME, version = InstantUnify.VERSION, dependencies = "before:unidict", acceptedMinecraftVersions = "[1.12,1.13)", acceptableRemoteVersions = "*")
 @EventBusSubscriber
@@ -47,23 +53,27 @@ public class InstantUnify {
 	//config
 	public static Configuration config;
 	public static List<String> blacklist, whitelist, preferredMods, blacklistMods;
-	public static boolean drop, harvest, gui, second;
+	public static boolean drop, harvest, gui, second, death, useUnidict;
 	public static int listMode;
 	public static Map<String, List<String>> alternatives = new HashMap<>();
+
+	private static Object resourceHandler;
 
 	@Mod.EventHandler
 	public void preInit(FMLPreInitializationEvent event) {
 		config = new Configuration(event.getSuggestedConfigurationFile());
-		blacklist = new ArrayList<String>(Arrays.asList(config.getStringList("blacklist", "List", new String[] { ".*Wood", ".*Glass.*", "stair.*", "fence.*", "plank.*", "slab.*" }, "OreDict names that shouldn't be unified. (supports regex)" + NEW_LINE)));
-		whitelist = new ArrayList<String>(Arrays.asList(config.getStringList("whitelist", "List", new String[] { "block.*", "chunk.*", "dust.*", "dustSmall.*", "dustTiny.*", "gear.*", "gem.*", "ingot.*", "nugget.*", "ore.*", "plate.*", "rod.*" }, "OreDict names that should be unified. (supports regex)" + NEW_LINE)));
+		blacklist = new ArrayList<>(Arrays.asList(config.getStringList("blacklist", "List", new String[] { ".*Wood", ".*Glass.*", "stair.*", "fence.*", "plank.*", "slab.*" }, "OreDict names that shouldn't be unified. (supports regex)" + NEW_LINE)));
+		whitelist = new ArrayList<>(Arrays.asList(config.getStringList("whitelist", "List", new String[] { "block.*", "chunk.*", "dust.*", "dustSmall.*", "dustTiny.*", "gear.*", "gem.*", "ingot.*", "nugget.*", "ore.*", "plate.*", "rod.*" }, "OreDict names that should be unified. (supports regex)" + NEW_LINE)));
 		listMode = config.getInt("listMode", "List", 2, 0, 3, "0 - use whitelist" + NEW_LINE + "1 - use blacklist" + NEW_LINE + "2 - use both lists" + NEW_LINE + "3 - use no list" + NEW_LINE);
-		preferredMods = new ArrayList<String>(Arrays.asList(config.getStringList("preferredMods", CATEGORY_GENERAL, new String[] { "thermalfoundation", "immersiveengineering", "embers" }, "Preferred Mods" + NEW_LINE)));
+		preferredMods = new ArrayList<>(Arrays.asList(config.getStringList("preferredMods", CATEGORY_GENERAL, new String[] { "thermalfoundation", "immersiveengineering", "embers" }, "Preferred Mods" + NEW_LINE)));
 		preferredMods.add(0, "minecraft");
-		blacklistMods = new ArrayList<String>(Arrays.asList(config.getStringList("blacklistMods", CATEGORY_GENERAL, new String[] { "chisel" }, "Blacklisted Mods" + NEW_LINE)));
+		blacklistMods = new ArrayList<>(Arrays.asList(config.getStringList("blacklistMods", CATEGORY_GENERAL, new String[] { "chisel" }, "Blacklisted Mods" + NEW_LINE)));
 		drop = config.getBoolean("drop", "unifyEvent", true, "Unify when items drop.");
 		harvest = config.getBoolean("harvest", "unifyEvent", true, "Unify when blocks are harvested.");
+		death = config.getBoolean("death", "unifyEvent", false, "Unify drops when entities die.");
 		second = config.getBoolean("second", "unifyEvent", false, "Unify every second items in player's inventory.");
-		gui = config.getBoolean("gui", "unifyEvent", true, "Unify when GUI is opened/closed.");
+		gui = config.getBoolean("gui", "unifyEvent", true, "Unify items in player's inventory when GUI is opened/closed.");
+		useUnidict = config.getBoolean("useUnidict", CATEGORY_GENERAL, true, "Use UniDict's settings to unify. (Other settings from this mod will be ignored.)") && Loader.isModLoaded("unidict");
 		List<List<String>> alts = Arrays.stream(config.getStringList("alternatives", CATEGORY_GENERAL, new String[] { "aluminum aluminium" }, "OreDict names that should be unified even if they are different." + NEW_LINE)).map(s -> Arrays.stream(s.trim().split("\\s+")).filter(ss -> !ss.isEmpty()).collect(Collectors.toList())).collect(Collectors.toList());
 		for (List<String> lis : alts) {
 			for (String n : lis) {
@@ -77,9 +87,21 @@ public class InstantUnify {
 			config.save();
 	}
 
+	@Mod.EventHandler
+	public void postInit(FMLPostInitializationEvent event) {
+		if (useUnidict)
+			resourceHandler = UniDict.getResourceHandler();
+	}
+
+	@Mod.EventHandler
+	public void serverStart(FMLServerStartingEvent event) {
+		if (useUnidict)
+			((ResourceHandler) resourceHandler).populateIndividualStackAttributes();
+	}
+
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void spawn(EntityJoinWorldEvent event) {
-		if (drop && event.getEntity() instanceof EntityItem) {
+		if (drop && event.getEntity() instanceof EntityItem && !event.getWorld().isRemote) {
 			EntityItem ei = (EntityItem) event.getEntity();
 			ei.setItem(replace(ei.getItem()));
 		}
@@ -87,14 +109,19 @@ public class InstantUnify {
 
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void harvest(HarvestDropsEvent event) {
-		if (harvest) {
+		if (harvest)
 			try {
 				event.getDrops().replaceAll(InstantUnify::replace);
 			} catch (UnsupportedOperationException e) {
 				Block block = event.getWorld().getBlockState(event.getPos()).getBlock();
 				LogManager.getLogger(MODID).warn("Drops of " + block + " can't be replaced.");
 			}
-		}
+	}
+
+	@SubscribeEvent(priority = EventPriority.LOWEST)
+	public static void death(LivingDropsEvent event) {
+		if (death && !event.getEntity().world.isRemote)
+			event.getDrops().forEach(ei -> ei.setItem(replace(ei.getItem())));
 	}
 
 	@SubscribeEvent
@@ -116,8 +143,8 @@ public class InstantUnify {
 
 	@SubscribeEvent
 	public static void open(PlayerContainerEvent event) {
-		if (gui) {
-			event.getContainer().inventorySlots.stream().filter(slot -> slot.inventory instanceof InventoryPlayer).forEach(slot -> slot.inventory.setInventorySlotContents(slot.getSlotIndex(), replace(slot.inventory.getStackInSlot(slot.getSlotIndex()))));
+		if (gui && !event.getEntityPlayer().world.isRemote) {
+			event.getContainer().inventorySlots.stream().filter(slot -> slot.inventory instanceof InventoryPlayer).forEach(slot -> slot.putStack(replace(slot.getStack())));
 			event.getContainer().detectAndSendChanges();
 		}
 	}
@@ -128,25 +155,24 @@ public class InstantUnify {
 	}
 
 	private static Optional<ItemStack> replaceOptional(ItemStack orig) {
+		if (useUnidict) {
+			ItemStack res = ((ResourceHandler) resourceHandler).getMainItemStack(orig);
+			return res.isEmpty() || res.isItemEqual(orig) ? Optional.empty() : Optional.of(res);
+		}
 		if (orig.isEmpty() || blacklistMods.contains(orig.getItem().getRegistryName().getResourceDomain()))
 			return Optional.empty();
 		final String[] oreNames = oreNames(orig);
 		if (oreNames.length == 0)
 			return Optional.empty();
 		String ore = oreNames[0];
-		if (listMode == 0 || listMode == 2) {
-			if (!whitelist.stream().anyMatch(s -> Pattern.matches(s, ore)))
-				return Optional.empty();
-		}
-		if (listMode == 1 || listMode == 2) {
-			if (blacklist.stream().anyMatch(s -> Pattern.matches(s, ore)))
-				return Optional.empty();
-		}
-		List<ItemStack> stacks = OreDictionary.getOres(ore).stream().//
-				sorted((s1, s2) -> {
-					int i1 = preferredMods.indexOf(s1.getItem().getRegistryName().getResourceDomain()), i2 = preferredMods.indexOf(s2.getItem().getRegistryName().getResourceDomain());
-					return Integer.compare(i1 == -1 ? 999 : i1, i2 == -1 ? 999 : i2);
-				}).collect(Collectors.toList());
+		if ((listMode == 0 || listMode == 2) && !whitelist.stream().anyMatch(s -> Pattern.matches(s, ore)))
+			return Optional.empty();
+		if ((listMode == 1 || listMode == 2) && blacklist.stream().anyMatch(s -> Pattern.matches(s, ore)))
+			return Optional.empty();
+		List<ItemStack> stacks = OreDictionary.getOres(ore).stream().sorted((s1, s2) -> {
+			int i1 = preferredMods.indexOf(s1.getItem().getRegistryName().getResourceDomain()), i2 = preferredMods.indexOf(s2.getItem().getRegistryName().getResourceDomain());
+			return Integer.compare(i1 == -1 ? 999 : i1, i2 == -1 ? 999 : i2);
+		}).collect(Collectors.toList());
 		if (stacks.stream().map(s -> s.getItem().getRegistryName().getResourceDomain()).distinct().count() == 1)
 			return Optional.empty();
 		for (ItemStack s : stacks) {
@@ -164,7 +190,7 @@ public class InstantUnify {
 	}
 
 	private static String[] oreNames(ItemStack s) {
-		List<String> ores = Arrays.stream(OreDictionary.getOreIDs(s)).mapToObj(i -> OreDictionary.getOreName(i)).collect(Collectors.toList());
+		List<String> ores = Arrays.stream(OreDictionary.getOreIDs(s)).mapToObj(OreDictionary::getOreName).collect(Collectors.toList());
 		for (String ore : new ArrayList<>(ores)) {
 			for (String key : alternatives.keySet())
 				if (ore.contains(key))
