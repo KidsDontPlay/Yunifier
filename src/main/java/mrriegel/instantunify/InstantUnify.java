@@ -39,14 +39,14 @@ import net.minecraftforge.oredict.OreDictionary;
 import wanion.unidict.UniDict;
 import wanion.unidict.resource.ResourceHandler;
 
-@Mod(modid = InstantUnify.MODID, name = InstantUnify.NAME, version = InstantUnify.VERSION, dependencies = "before:unidict", acceptedMinecraftVersions = "[1.12,1.13)", acceptableRemoteVersions = "*")
+@Mod(modid = InstantUnify.MODID, name = InstantUnify.NAME, version = InstantUnify.VERSION, acceptedMinecraftVersions = "[1.12,1.13)", acceptableRemoteVersions = "*")
 @EventBusSubscriber
 public class InstantUnify {
 
 	@Instance(InstantUnify.MODID)
 	public static InstantUnify INSTANCE;
 
-	public static final String VERSION = "1.1.0";
+	public static final String VERSION = "1.1.1";
 	public static final String NAME = "InstantUnify";
 	public static final String MODID = "instantunify";
 
@@ -74,7 +74,7 @@ public class InstantUnify {
 		second = config.getBoolean("second", "unifyEvent", false, "Unify every second items in player's inventory.");
 		gui = config.getBoolean("gui", "unifyEvent", true, "Unify items in player's inventory when GUI is opened/closed.");
 		useUnidict = config.getBoolean("useUnidict", CATEGORY_GENERAL, true, "Use UniDict's settings to unify. (Other settings from this mod will be ignored.)") && Loader.isModLoaded("unidict");
-		List<List<String>> alts = Arrays.stream(config.getStringList("alternatives", CATEGORY_GENERAL, new String[] { "aluminum aluminium" }, "OreDict names that should be unified even if they are different." + NEW_LINE)).map(s -> Arrays.stream(s.trim().split("\\s+")).filter(ss -> !ss.isEmpty()).collect(Collectors.toList())).collect(Collectors.toList());
+		List<List<String>> alts = Arrays.stream(config.getStringList("alternatives", CATEGORY_GENERAL, new String[] { "aluminum aluminium bauxite" }, "OreDict names that should be unified even if they are different." + NEW_LINE)).map(s -> Arrays.stream(s.trim().split("\\s+")).filter(ss -> !ss.isEmpty()).collect(Collectors.toList())).collect(Collectors.toList());
 		for (List<String> lis : alts) {
 			for (String n : lis) {
 				List<String> copy = new ArrayList<>(lis);
@@ -155,7 +155,7 @@ public class InstantUnify {
 	}
 
 	private static Optional<ItemStack> replaceOptional(ItemStack orig) {
-		if (useUnidict) {
+		if (useUnidict && resourceHandler != null) {
 			ItemStack res = ((ResourceHandler) resourceHandler).getMainItemStack(orig);
 			return res.isEmpty() || res.isItemEqual(orig) ? Optional.empty() : Optional.of(res);
 		}
