@@ -8,13 +8,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+
 import net.minecraft.entity.item.ItemEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.inventory.container.Container;
+import net.minecraft.inventory.container.IContainerListener;
+import net.minecraft.inventory.container.PlayerContainer;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tags.ItemTags;
+import net.minecraft.util.NonNullList;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.common.MinecraftForge;
@@ -22,6 +33,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.player.PlayerContainerEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -41,10 +53,13 @@ public class InstantUnify {
     public static final Logger LOG = LogManager.getLogger(InstantUnify.class);
 
     private ForgeConfigSpec.ConfigValue<List<? extends String>> blacklist, whitelist, preferredMods, blacklistedMods;
-    private ForgeConfigSpec.BooleanValue drop, harvest, gui, second, death;
+    private ForgeConfigSpec.BooleanValue drop, harvest, gui, second, death, change;
     private ForgeConfigSpec.EnumValue<ListMode> listMode;
-    private ForgeConfigSpec.ConfigValue<List<List<String>>> alts;
+    private ForgeConfigSpec.ConfigValue<List<? extends List<? extends String>>> alts;
     private Map<String, List<String>> alternatives;
+
+    private Cache<Item, ResourceLocation[]> tagNameCache = CacheBuilder.newBuilder()
+            .expireAfterWrite(20, TimeUnit.SECONDS).build();
 
     public InstantUnify() {
         Pair<Object, ForgeConfigSpec> pair = new ForgeConfigSpec.Builder().configure(b -> {
@@ -61,13 +76,15 @@ public class InstantUnify {
             blacklistedMods = b.comment("Blacklisted Mods")
                     .defineList("blacklistMods", Arrays.asList("chisel", "astralsorcery"), s -> s instanceof String);
             alts = b.comment("Tag names that should be unified even if they are different")
-                    .define("alternatives", Arrays.asList(Arrays.asList("aluminum", "aluminium", "bauxite")));
+                    .defineList("alternatives", Arrays.asList(Arrays.asList("aluminum", "aluminium", "bauxite")),//
+                            o -> o instanceof List && (((List) o).isEmpty() || ((List) o).get(0) instanceof String));
             b.push("Unify event");
             drop = b.comment("Unify when items drop").define("drop", true);
             harvest = b.comment("Unify when blocks are harvested").define("harvest", true);
-            death = b.comment("Unify drops when entities die").define("death", false);
+            death = b.comment("Unify drops when entities die").define("death", true);
             second = b.comment("Unify every second items in player's inventory").define("second", false);
-            gui = b.comment("Unify items in player's inventory when GUI is opened/closed").define("gui", true);
+            //gui = b.comment("Unify items in player's inventory when GUI is opened/closed").define("gui", false);
+            change = b.comment("Unify items in player's inventory when they change").define("change", true);
             b.pop();
             return null;
         });
@@ -121,13 +138,37 @@ public class InstantUnify {
         return changed;
     }
 
-    @SubscribeEvent
+    //@SubscribeEvent
     public void open(PlayerContainerEvent event) {
         if (gui.get() && !event.getPlayer().world.isRemote) {
             PlayerEntity player = event.getPlayer();
             if (replaceInventory(player) && player.openContainer != null) {
                 player.openContainer.detectAndSendChanges();
             }
+        }
+    }
+
+    @SubscribeEvent
+    public void login(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getPlayer() instanceof ServerPlayerEntity && event
+                .getPlayer().openContainer instanceof PlayerContainer) {
+            event.getPlayer().openContainer.addListener(new IContainerListener() {
+                @Override
+                public void sendAllContents(Container containerToSend, NonNullList<ItemStack> itemsList) {
+                }
+
+                @Override
+                public void sendSlotContents(Container containerToSend, int slotInd, ItemStack stack) {
+                    if (change.get()) {
+                        replace(containerToSend.inventorySlots.get(slotInd).getStack())//
+                                .ifPresent(s -> containerToSend.inventorySlots.get(slotInd).putStack(s));
+                    }
+                }
+
+                @Override
+                public void sendWindowProperty(Container containerIn, int varToUpdate, int newValue) {
+                }
+            });
         }
     }
 
@@ -147,7 +188,6 @@ public class InstantUnify {
                                     index2 = preferredMods.get().indexOf(i2.getRegistryName().getNamespace());
                             return Integer.compare(index1 == -1 ? 999 : index1, index2 == -1 ? 999 : index2);
                         })//
-                        .filter(i -> orig.getItem() != i)//
                         .map(i -> new ItemStack(i, orig.getCount()))//
                         .collect(Collectors.toList()))//
                 .filter(l -> !l.isEmpty())//
@@ -163,42 +203,50 @@ public class InstantUnify {
     }
 
     private ResourceLocation[] tagNames(ItemStack s) {
-        Set<ResourceLocation> unmodifiableNames = s.getItem().getTags();
-        Set<ResourceLocation> names = new HashSet<>(unmodifiableNames);
-        if (alternatives == null) {
-            alternatives = new HashMap<>();
-            for (List<String> lis : alts.get()) {
-                for (String n : lis) {
-                    List<String> copy = new ArrayList<>(lis);
-                    Validate.isTrue(!n.contains(":"), ": is not allowed in alternative tag");
-                    copy.remove(n);
-                    if (!copy.isEmpty())
-                        alternatives.put(n, copy);
-                }
-            }
-        }
-        for (ResourceLocation name : unmodifiableNames) {
-            for (Map.Entry<String, List<String>> e : alternatives.entrySet()) {
-                String key = e.getKey();
-                if (name.toString().contains(key)) {
-                    List<String> val = e.getValue();
-                    for (String alt : val) {
-                        names.add(new ResourceLocation(name.toString().replace(key, alt)));
+        try {
+            return tagNameCache.get(s.getItem(), () -> {
+                Set<ResourceLocation> unmodifiableNames = s.getItem().getTags();
+                Set<ResourceLocation> names = new HashSet<>(unmodifiableNames);
+                if (alternatives == null) {
+                    alternatives = new HashMap<>();
+                    for (List<? extends String> lis : alts.get()) {
+                        for (String n : lis) {
+                            List<String> copy = new ArrayList<>(lis);
+                            Validate.isTrue(!n.contains(":"), ": is not allowed in alternative tag");
+                            copy.remove(n);
+                            if (!copy.isEmpty())
+                                alternatives.put(n, copy);
+                        }
                     }
                 }
-            }
+                for (ResourceLocation name : unmodifiableNames) {
+                    for (Map.Entry<String, List<String>> e : alternatives.entrySet()) {
+                        String key = e.getKey();
+                        if (name.getPath().contains(key)) {
+                            List<String> val = e.getValue();
+                            for (String alt : val) {
+                                names.add(new ResourceLocation(name.getNamespace(), name.getPath().replace(key, alt)));
+                            }
+                        }
+                    }
+                }
+                return names.stream().filter(r -> {
+                    if ((listMode.get() == ListMode.USE_WHITELIST || listMode
+                            .get() == ListMode.USE_BOTH_LISTS) && whitelist.get().stream()
+                            .noneMatch(ss -> Pattern.matches(ss, r.toString()))) {
+                        return false;
+                    }
+                    if ((listMode.get() == ListMode.USE_BLACKLIST || listMode
+                            .get() == ListMode.USE_BOTH_LISTS) && blacklist.get().stream()
+                            .anyMatch(ss -> Pattern.matches(ss, r.toString()))) {
+                        return false;
+                    }
+                    return true;
+                }).sorted().toArray(ResourceLocation[]::new);
+            });
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
         }
-        return names.stream().filter(r -> {
-            if ((listMode.get() == ListMode.USE_WHITELIST || listMode.get() == ListMode.USE_BOTH_LISTS) && whitelist
-                    .get().stream().noneMatch(ss -> Pattern.matches(ss, r.toString()))) {
-                return false;
-            }
-            if ((listMode.get() == ListMode.USE_BLACKLIST || listMode.get() == ListMode.USE_BOTH_LISTS) && blacklist
-                    .get().stream().anyMatch(ss -> Pattern.matches(ss, r.toString()))) {
-                return false;
-            }
-            return true;
-        }).sorted().toArray(ResourceLocation[]::new);
     }
 
     private enum ListMode {
