@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -181,8 +182,10 @@ public class InstantUnify {
         if (tagNames.length == 0) {
             return Optional.empty();
         }
-        List<List<ItemStack>> itemLists = Arrays.stream(tagNames)
-                .map(rl -> ItemTags.getCollection().get(rl).getAllElements().stream()//
+        List<List<ItemStack>> itemLists = Arrays.stream(tagNames)//
+                .map(rl -> ItemTags.getCollection().get(rl))//
+                .filter(Objects::nonNull)//
+                .map(tag -> tag.getAllElements().stream()//
                         .sorted((i1, i2) -> {
                             int index1 = preferredMods.get().indexOf(i1.getRegistryName().getNamespace()),//
                                     index2 = preferredMods.get().indexOf(i2.getRegistryName().getNamespace());
@@ -230,19 +233,15 @@ public class InstantUnify {
                         }
                     }
                 }
-                return names.stream().filter(r -> {
-                    if ((listMode.get() == ListMode.USE_WHITELIST || listMode
-                            .get() == ListMode.USE_BOTH_LISTS) && whitelist.get().stream()
-                            .noneMatch(ss -> Pattern.matches(ss, r.toString()))) {
-                        return false;
-                    }
-                    if ((listMode.get() == ListMode.USE_BLACKLIST || listMode
-                            .get() == ListMode.USE_BOTH_LISTS) && blacklist.get().stream()
-                            .anyMatch(ss -> Pattern.matches(ss, r.toString()))) {
-                        return false;
-                    }
-                    return true;
-                }).sorted().toArray(ResourceLocation[]::new);
+                return names.stream().filter(r ->//
+                        ((listMode.get() != ListMode.USE_WHITELIST//
+                                && listMode.get() != ListMode.USE_BOTH_LISTS)//
+                                || whitelist.get().stream().anyMatch(ss -> Pattern.matches(ss, r.toString())))//
+                                //###############################################
+                                && ((listMode.get() != ListMode.USE_BLACKLIST//
+                                && listMode.get() != ListMode.USE_BOTH_LISTS)//
+                                || blacklist.get().stream().noneMatch(ss -> Pattern.matches(ss, r.toString()))))
+                        .sorted().toArray(ResourceLocation[]::new);
             });
         } catch (ExecutionException e) {
             throw new RuntimeException(e);
