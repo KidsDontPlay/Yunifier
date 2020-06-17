@@ -1,5 +1,5 @@
 modLoader="javafml"
-loaderVersion="[28,)"
+loaderVersion="[29,32)"
 issueTrackerURL="http://my.issue.tracker/"
 
 [[mods]]
@@ -16,12 +16,12 @@ Unifies oredicted items automatically
 [[dependencies.instantunify]]
     modId="forge"
     mandatory=true
-    versionRange="[28,)"
+    versionRange="[29,32)"
     ordering="NONE"
     side="BOTH"
 [[dependencies.instantunify]]
     modId="minecraft"
     mandatory=true
-    versionRange="[1.14.4,1.15)"
+    versionRange="[1.15,1.16)"
     ordering="NONE"
     side="BOTH"
